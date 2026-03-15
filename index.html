@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Premium Calculator v141</title>
+    <style>
+        * { 
+            -webkit-tap-highlight-color: transparent; 
+            box-sizing: border-box; 
+            touch-action: manipulation; /* ダブルタップズーム無効、スクロールは許可 */
+        }
+        
+        button, .mode-btn, .side-bar, .history-clear {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body { 
+            background-color: #0d0d0d; 
+            color: #e0e0e0; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            height: 100dvh; 
+            overflow: hidden; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            padding-bottom: env(safe-area-inset-bottom);
+            touch-action: none;
+        }
+
+        header { background: #1a1a1a; padding: 1vh 0; text-align: center; border-bottom: 2px solid #d4af37; flex: 0 0 auto; }
+        h1 { margin: 0; font-size: clamp(1rem, 4vw, 1.2rem); color: #d4af37; letter-spacing: 2px; }
+
+        #summary-overlay { 
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            width: 85%; max-width: 500px; background: rgba(34, 34, 34, 0.98); color: #ffd700; padding: 20px; 
+            font-size: 0.9rem; text-align: center; border: 2px solid #d4af37; border-radius: 10px; 
+            line-height: 1.6; font-weight: bold; z-index: 1000; box-shadow: 0 0 30px rgba(0,0,0,0.9);
+        }
+
+        #display-container { 
+            flex: 0 0 14vh; 
+            display: flex; 
+            align-items: center; 
+            padding: 0 20px; 
+            background: #000; 
+            border-bottom: 1px solid #222; 
+            overflow: hidden;
+        }
+        #display { 
+            width: 100%; 
+            font-size: clamp(2rem, 8vh, 4rem); 
+            text-align: right; 
+            border: none; 
+            background: transparent; 
+            color: #fff; 
+            outline: none; 
+            overflow-x: auto; 
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            padding: 10px 0;
+            min-height: 1.2em;
+            scrollbar-width: thin;
+            caret-color: #d4af37;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+        #display::-webkit-scrollbar { height: 4px; }
+        #display::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+        .mode-selector { 
+            display: flex; overflow-x: auto; background: #1a1a1a; flex: 0 0 auto; 
+            scrollbar-width: none; -ms-overflow-style: none; border-bottom: 1px solid #333;
+            touch-action: pan-x;
+        }
+        .mode-btn { 
+            flex: 1 0 70px; height: 45px; font-size: 0.8rem; border: none; cursor: pointer; 
+            background: #222; color: #888; font-weight: bold; white-space: nowrap; transition: 0.2s;
+        }
+        .mode-btn.active { background: #d4af37 !important; color: #000 !important; }
+
+        .key-area { flex: 1; padding: 4px; background: #111; overflow-y: auto; display: flex; flex-direction: column; touch-action: pan-y; }
+        .keypad, .ext-panel { display: none; grid-template-columns: repeat(4, 1fr); gap: 4px; width: 100%; height: 100%; }
+        #panel-basic { display: grid; }
+
+        button { 
+            border: none; border-radius: 6px; font-size: clamp(1.2rem, 3.5vh, 2rem); 
+            cursor: pointer; background: #262626; color: #fff; display: flex; 
+            align-items: center; justify-content: center; min-height: 50px;
+        }
+        .op { color: #d4af37; background: #2a2a2a; }
+        .equal { background: #d4af37; color: #000; font-weight: bold; }
+        .ac { color: #ff4d4d; }
+        .c-btn { color: #ffa500; }
+        
+        .split-btn { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; padding: 0; background: transparent; }
+        .split-btn button { border-radius: 4px; font-size: 1.2rem; height: 100%; }
+
+        .premium-ui { grid-column: span 4; background: #1a1a1a; padding: 12px; border-radius: 10px; border: 1px solid #333; display: flex; flex-direction: column; gap: 8px; }
+        .premium-ui label { font-size: 0.75rem; color: #d4af37; font-weight: bold; }
+        .premium-ui input, .premium-ui select { width: 100%; height: 44px; background: #2a2a2a; border: 1px solid #444; color: #fff; border-radius: 6px; font-size: 1rem; padding: 0 10px; }
+        .result-box { background: #000; border: 2px solid #d4af37; min-height: 60px; display: flex; align-items: center; justify-content: center; border-radius: 6px; margin-top: 5px; }
+        .res-main { font-size: 1.1rem; font-weight: bold; color: #fff; text-align: center; }
+        .calc-action-btn { background: #d4af37; color: #000; font-weight: bold; height: 50px; border-radius: 6px; font-size: 1.1rem; }
+
+        .bottom-area { 
+            flex: 0 0 auto; 
+            height: 140px; 
+            display: grid; 
+            grid-template-columns: 70px 1fr 70px; 
+            gap: 8px; 
+            padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); 
+            background: #000; 
+            border-top: 1px solid #d4af37; 
+            z-index: 50;
+        }
+        .side-bar { background: #1a1a1a; border: 1px solid #444; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; cursor: pointer; color: #d4af37; position: relative; height: 100%; }
+        #history-box { border: 1px solid #333; border-radius: 10px; background: #080808; display: flex; overflow: hidden; position: relative; height: 100%; }
+        #history-list { flex: 1; overflow-y: auto; padding: 10px; font-size: 0.95rem; color: #ccc; line-height: 1.4; height: 100%; touch-action: pan-y; }
+        .history-clear { 
+            width: 45px; height: 100%; font-size: 0.75rem; font-weight: bold;
+            background: #222; color: #ff4d4d; border: none; border-right: 1px solid #333;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 2px;
+        }
+
+        /* 履歴アイテムのホバー・タップスタイル */
+        .history-item {
+            border-bottom: 1px solid #222;
+            padding: 5px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .history-item:active { background: #2a2a1a; }
+        .history-text { flex: 1; min-width: 0; overflow: hidden; }
+        .history-share-btn {
+            flex: 0 0 auto;
+            width: 32px; height: 32px;
+            background: #2a2a2a; border: 1px solid #444; border-radius: 6px;
+            color: #d4af37; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: background 0.15s;
+            touch-action: manipulation;
+        }
+        .history-share-btn:active { background: #3a3a1a; }
+
+        #lang-select { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; font-size: 1.5rem; }
+
+        .hidden { display: none !important; }
+        input[type="range"] { width: 100%; margin: 10px 0; -webkit-appearance: none; background: #333; height: 6px; border-radius: 3px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: #d4af37; border-radius: 50%; }
+    </style>
+</head>
+<body>
+
+<header><h1 id="main-title">PREMIUM CALCULATOR</h1></header>
+
+<div id="summary-overlay" onclick="toggleSummary()">
+    当電卓は基本機能、接頭語、値数、科学計算、レート、税金計算、試算、言語、履歴がご利用いただけます<br><br>
+    ※希に不具合が起こる場合がございますので予めご了承ください<br><br>
+    <small>(クリックで閉じる)</small>
+</div>
+
+<div id="display-container"><div id="display" contenteditable="true" inputmode="none">0</div></div>
+
+<div class="mode-selector">
+    <button class="mode-btn active" id="m-basic" onclick="showPanel('basic', this)">基本</button>
+    <button class="mode-btn" id="m-unit" onclick="showPanel('unit', this)">接頭語</button>
+    <button class="mode-btn" id="m-stats" onclick="showPanel('stats', this)">値数</button>
+    <button class="mode-btn" id="m-sci" onclick="showPanel('sci', this)">科学</button>
+    <button class="mode-btn" id="m-rate" onclick="showPanel('rate', this)">レート</button>
+    <button class="mode-btn" id="m-tax" onclick="showPanel('tax', this)">税金</button>
+    <button class="mode-btn" id="m-tc" onclick="showPanel('tc', this)">試算</button>
+    <button class="mode-btn" id="m-docs" onclick="showPanel('docs', this)">資料</button>
+</div>
+
+<div class="key-area">
+    <div id="panel-basic" class="keypad">
+        <button class="ac" onclick="clearAll()">AC</button>
+        <button class="c-btn" onclick="backspace()">C</button>
+        <div class="split-btn">
+            <button class="op" onclick="add('(')">(</button>
+            <button class="op" onclick="add(')')">)</button>
+        </div>
+        <button class="op" onclick="add('÷')">÷</button>
+        <button onclick="add('7')">7</button><button onclick="add('8')">8</button><button onclick="add('9')">9</button><button class="op" onclick="add('×')">×</button>
+        <button onclick="add('4')">4</button><button onclick="add('5')">5</button><button onclick="add('6')">6</button><button class="op" onclick="add('-')">-</button>
+        <button onclick="add('1')">1</button><button onclick="add('2')">2</button><button onclick="add('3')">3</button><button class="op" onclick="add('+')">+</button>
+        <button onclick="add('0')">0</button><button onclick="add('.')">.</button><button class="op" onclick="add(',')">,</button><button class="equal" onclick="calculate()">=</button>
+    </div>
+
+    <div id="panel-unit" class="ext-panel" style="grid-template-columns: repeat(6, 1fr);">
+        <script>
+            const prefixes_list = ['Q','R','Y','Z','E','P','T','G','M','k','h','da','d','c','m','μ','n','p','f','a','z','y','r','q'];
+            prefixes_list.forEach(u => document.write(`<button style="color:#d4af37; font-size:clamp(1.4rem, 4vh, 2rem); font-weight:bold;" onclick="add('${u}')">${u}</button>`));
+        </script>
+    </div>
+
+    <div id="panel-stats" class="ext-panel">
+        <button id="s-avg" onclick="add('平均値(')">平均</button><button id="s-mid" onclick="add('中央値(')">中央</button>
+        <button id="s-mod" onclick="add('最頻値(')">最頻</button><button id="s-mul" onclick="add('^')">乗数</button>
+        <button id="s-max" onclick="add('最大値(')">最大</button><button id="s-min" onclick="add('最小値(')">最小</button>
+        <button class="op" onclick="add(',')">,</button><button class="op" onclick="add(')')">)</button>
+    </div>
+
+    <div id="panel-sci" class="ext-panel">
+        <button onclick="add('sin(')">sin</button><button onclick="add('cos(')">cos</button><button onclick="add('tan(')">tan</button><button onclick="add('√(')">√</button>
+        <button class="op" onclick="add('^')">^</button><button onclick="add('i')">i</button><button onclick="add('°')">°</button><button onclick="add('π')">π</button>
+        <button onclick="add('e')">e</button><button onclick="add('log(')">log</button><button onclick="add('⁻')">(-)</button><button class="op" onclick="add(')')">)</button>
+    </div>
+
+    <div id="panel-rate" class="ext-panel"><div class="premium-ui"><label id="l-rate-amt">金額</label><input type="text" id="rate-amount" value="1" inputmode="text" lang="en" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><div style="display:flex; gap:5px;"><div style="flex:1"><label id="l-rate-from">元</label><select id="rate-from"></select></div><div style="flex:1"><label id="l-rate-to">先</label><select id="rate-to"></select></div></div><button id="btn-calc-rate" class="calc-action-btn" onclick="fetchRate()">レート計算実行</button><div id="rate-result" class="result-box">---</div></div></div>
+
+    <div id="panel-tax" class="ext-panel"><div class="premium-ui"><label id="l-tax-amt">課税対象額</label><input type="text" id="tax-amount" value="50M" inputmode="text" lang="en" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><div id="tax-people-box" class="hidden"><label id="l-tax-people">法定相続人数: 1人</label><input type="range" id="tax-people-slider" min="1" max="10" value="1" oninput="updateTaxPeople(this.value)"></div><label id="l-tax-type">税目選択</label><select id="tax-type" onchange="toggleTaxUI()"></select><button id="btn-calc-tax" class="calc-action-btn" onclick="calcTaxAdvanced()">税金計算実行</button><div id="tax-result" class="result-box">---</div></div></div>
+
+    <div id="panel-tc" class="ext-panel"><div class="premium-ui"><label id="l-tc-amt">対象金額</label><input type="text" id="tc-amount" value="1k" inputmode="text" lang="en" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><div id="tc-day-box" class="hidden"><label id="l-tc-day">1日あたりの使用量/時間</label><div style="position:relative;"><input type="text" id="tc-day-val" value="1" inputmode="text" lang="en" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span id="unit-suffix" style="position:absolute; right:10px; top:12px; color:#888; pointer-events:none;"></span></div></div><div id="tc-salary-options"><label id="holiday-label">年間休日: 120日</label><input type="range" id="tc-holiday-slider" min="0" max="365" value="120" oninput="updateHolidayLabel(this.value)"><label id="l-tc-mode">給料区分</label><select id="tc-salary-mode"></select></div><label id="l-tc-type">項目</label><select id="tc-type" onchange="toggleTCUI()"></select><button id="btn-calc-tc" class="calc-action-btn" onclick="calcTC()">試算実行</button><div id="tax-result-tc" class="result-box"><span id="tc-res-text">---</span></div></div></div>
+    <div id="panel-docs" class="ext-panel" style="grid-template-columns:1fr;">
+        <div class="premium-ui">
+            <label style="text-align:center; font-size:0.85rem; display:block;">リンクを開く</label>
+            <button class="calc-action-btn" onclick="window.open('https://macharatte.github.io/loan/', '_blank')">
+                ローン計算機
+            </button>
+            <button class="calc-action-btn" onclick="window.open('https://macharatte.github.io/scanner/', '_blank')" style="background:#2a2a2a; color:#d4af37; border:1px solid #d4af37;">
+                容量編集
+            </button>
+            <button class="calc-action-btn" onclick="window.open('https://macharatte.github.io/Mathematics/', '_blank')" style="background:#2a2a2a; color:#d4af37; border:1px solid #d4af37;">
+                数学の解法
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="bottom-area">
+    <div class="side-bar">🌐<select id="lang-select" onchange="changeLang(this.value)">
+        <option value="ja">日本語 / Japanese</option>
+        <option value="en">English</option>
+        <option value="zh">中文 / Chinese</option>
+        <option value="es">Español / Spanish</option>
+    </select></div>
+    <div id="history-box">
+        <button class="history-clear" onclick="clearHistory()">CLEAR</button>
+        <div id="history-list"></div>
+    </div>
+    <div class="side-bar" onclick="toggleSummary()">i</div>
+</div>
+
+<script>
+    const disp = document.getElementById('display');
+    let isCalculated = false, currentLang = 'ja';
+    let isBracketOpen = false;
+
+    const pMap = {'Q':'1000000000000000000000000000000','R':'1000000000000000000000000000','Y':'1000000000000000000000000','Z':'1000000000000000000000','E':'1000000000000000000','P':'1000000000000000','T':'1000000000000','G':'1000000000','M':'1000000','k':'1000','h':'100','da':'10','d':'0.1','c':'0.01','m':'0.001','μ':'0.000001','n':'0.000000001','p':'0.000000000001','f':'0.000000000000001','a':'0.000000000000000001','z':'0.000000000000000000001','y':'0.000000000000000000000001','r':'0.000000000000000000000000001','q':'0.000000000000000000000000000001'};
+
+    const tokens = ["sin(", "cos(", "tan(", "log(", "√(", "平均値(", "中央値(", "最頻値(", "最大値(", "最小値("];
+    const ops = ['+', '-', '×', '÷', '^', ','];
+    const limitTokens = ['.', '°', 'i', 'e', 'π'];
+
+    function setCursor(pos) {
+        disp.focus();
+        const sel = window.getSelection();
+        if (disp.childNodes.length > 0) {
+            const range = document.createRange();
+            const node = disp.childNodes[0];
+            const targetPos = Math.min(Math.max(0, pos), node.length);
+            range.setStart(node, targetPos);
+            range.collapse(true);
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+    }
+
+    function getSafePos() {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            if (range.startContainer === disp || range.startContainer.parentNode === disp) {
+                return range.startOffset;
+            }
+        }
+        return disp.innerText.length;
+    }
+
+    // ── 状態をJSで一元管理（DOMを正とせず、exprStr・cursorPosを真のstate）──
+    let exprStr = "0";   // 現在の式文字列
+    let cursorPos = 1;   // カーソル位置（文字インデックス）
+    let inputQueue = []; // 高速入力キュー
+    let processing = false;
+
+    // テキストノードを直接書き換えてscrollLeftをリセットしない
+    function setDispText(str) {
+        if (disp.childNodes.length === 1 && disp.childNodes[0].nodeType === Node.TEXT_NODE) {
+            disp.childNodes[0].nodeValue = str;
+        } else {
+            const scrollPos = disp.scrollLeft;
+            disp.textContent = str;
+            disp.scrollLeft = scrollPos;
+        }
+    }
+
+    // カーソルをDOMに反映
+    function applyState() {
+        setDispText(exprStr);
+        setCursor(cursorPos);
+        scrollToCursor();
+    }
+
+    // キューを順番に処理（高速連打対応）
+    function flushQueue() {
+        if (processing || inputQueue.length === 0) return;
+        processing = true;
+        while (inputQueue.length > 0) {
+            const fn = inputQueue.shift();
+            fn();
+        }
+        applyState();
+        processing = false;
+    }
+
+    // 入力をキューに積む
+    function enqueue(fn) {
+        inputQueue.push(fn);
+        if (!processing) flushQueue();
+    }
+
+    // 式と状態を更新する純粋関数
+    function computeInsert(text) {
+        let c = exprStr;
+        let p = cursorPos;
+
+        if (c === "0" && p === 1 && text !== '.' && !ops.includes(text) && text !== '⁻') {
+            c = ""; p = 0;
+        }
+
+        // ── バリデーション ──
+        // 1. 式の先頭（カーソルが0位置）に演算子・°は入力不可
+        const blockAtStart = ['+', '-', '×', '÷', '^', ',', '°'];
+        if (p === 0 && blockAtStart.includes(text)) return;
+
+        // 2. 閉じ括弧は開き括弧の数を超えて入力不可
+        if (text === ')') {
+            const openCount  = (c.match(/\(/g) || []).length;
+            const closeCount = (c.match(/\)/g) || []).length;
+            if (closeCount >= openCount) return;
+        }
+
+        if (isBracketOpen && text.includes('(')) {
+            for (let t of tokens) {
+                let idx = c.lastIndexOf(t, p - 1);
+                if (idx !== -1 && !c.substring(idx).includes(')')) {
+                    c = c.substring(0, idx) + c.substring(p);
+                    p = idx; break;
+                }
+            }
+        } else if (isBracketOpen) {
+            if (!/^[0-9.,⁻]$/.test(text) && text !== ')') return;
+        }
+
+        let prevChar = c[p - 1];
+        if (ops.includes(text) || limitTokens.includes(text)) {
+            if (ops.includes(prevChar) || limitTokens.includes(prevChar)) {
+                c = c.substring(0, p - 1) + c.substring(p);
+                p = p - 1;
+            }
+        }
+
+        exprStr = c.substring(0, p) + text + c.substring(p);
+        cursorPos = p + text.length;
+
+        if (text.includes('(')) isBracketOpen = true;
+        if (text === ')') isBracketOpen = false;
+    }
+
+    function computeBackspace() {
+        const c = exprStr;
+        const p = cursorPos;
+        if (p === 0 || c === "0") return;
+
+        let start = p - 1, end = p;
+        for (let t of tokens) {
+            let idx = -1;
+            while ((idx = c.indexOf(t, idx + 1)) !== -1) {
+                if (p > idx && p <= idx + t.length) {
+                    start = idx; end = idx + t.length; break;
+                }
+            }
+        }
+
+        const newText = c.substring(0, start) + c.substring(end);
+        exprStr = newText || "0";
+        cursorPos = start;
+
+        let openCount = (exprStr.match(/\(/g) || []).length;
+        let closeCount = (exprStr.match(/\)/g) || []).length;
+        isBracketOpen = openCount > closeCount;
+    }
+
+    // カーソルが画面外の時だけスクロール追従
+    function scrollToCursor() {
+        requestAnimationFrame(() => {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+            const range = sel.getRangeAt(0).cloneRange();
+            range.collapse(true);
+            const rect = range.getBoundingClientRect();
+            const dispRect = disp.getBoundingClientRect();
+            if (rect.right > dispRect.right) {
+                disp.scrollLeft += rect.right - dispRect.right + 10;
+            } else if (rect.left < dispRect.left) {
+                disp.scrollLeft -= dispRect.left - rect.left + 10;
+            }
+        });
+    }
+
+    function add(val) {
+        enqueue(() => {
+            if (isCalculated) {
+                if (!ops.includes(val) && !limitTokens.includes(val) && val !== '⁻' && !val.includes('(')) {
+                    exprStr = "0"; cursorPos = 1;
+                }
+                isCalculated = false;
+            }
+            computeInsert(val);
+        });
+    }
+
+    function backspace() {
+        enqueue(() => { computeBackspace(); });
+    }
+
+    function clearAll() {
+        inputQueue = [];
+        exprStr = "0"; cursorPos = 1;
+        isCalculated = false; isBracketOpen = false;
+        applyState();
+    }
+    
+    function shareToMemo(expr, result) {
+        const text = expr + ' = ' + result;
+        if (navigator.share) {
+            navigator.share({ title: 'Calculator Result', text: text }).catch(() => {});
+        } else {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('クリップボードにコピーしました:\n' + text);
+            }).catch(() => {
+                window.prompt('以下をコピーしてメモに貼り付けてください:', text);
+            });
+        }
+    }
+
+    function clearHistory() { document.getElementById('history-list').innerHTML = ""; sessionStorage.removeItem('calcHistory'); }
+
+    // 履歴アイテムをクリックすると式をディスプレイに戻す
+    function restoreExpression(expr) {
+        inputQueue = [];
+        exprStr = expr; cursorPos = expr.length;
+        isCalculated = false;
+        let openCount = (expr.match(/\(/g) || []).length;
+        let closeCount = (expr.match(/\)/g) || []).length;
+        isBracketOpen = openCount > closeCount;
+        applyState();
+        showPanel('basic', document.getElementById('m-basic'));
+    }
+
+        const processStr = (s) => {
+        let res = s.replace(/×/g,'*').replace(/÷/g,'/');
+        const pKeys = Object.keys(pMap).sort((a,b) => b.length - a.length);
+        const esc = p => p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        const pPat = pKeys.map(esc).join('|');
+        // ステップ1: 数値+接頭語の連続（例: 2kM, 3Gk）を展開
+        const numPrefixSeq = new RegExp('(\\d+(?:\\.\\d+)?)(' + pPat + ')((?:' + pPat + ')*)', 'g');
+        res = res.replace(numPrefixSeq, (match, num, firstP, rest) => {
+            let out = '(' + num + '*' + pMap[firstP] + ')';
+            if (rest) { const rReg = new RegExp(pPat, 'g'); let m2; while ((m2 = rReg.exec(rest)) !== null) out += '*(' + pMap[m2[0]] + ')'; }
+            return out;
+        });
+        // ステップ2: 単独接頭語の連続（例: QQ, kM, ZR）を展開
+        const seqReg = new RegExp('(' + pPat + ')((?:' + pPat + ')+)', 'g');
+        res = res.replace(seqReg, (match) => {
+            const rReg = new RegExp(pPat, 'g'); let parts = [], m2;
+            while ((m2 = rReg.exec(match)) !== null) parts.push('(' + pMap[m2[0]] + ')');
+            return parts.join('*');
+        });
+        // ステップ3: 残った単独接頭語を展開
+        const singleReg = new RegExp('(?<![\\w.])(' + pPat + ')(?![a-zA-Z\\d])', 'g');
+        res = res.replace(singleReg, (match, p) => { if (p === 'e') return match; return '(' + pMap[p] + ')'; });
+        return res;
+    };
+
+    const getNums = (str) => { return str.split(',').map(part => { try { return parseFloat(eval(processStr(part.trim()))); } catch { return NaN; } }).filter(n => !isNaN(n)); };
+    const _avg = (g) => { const n = getNums(g); return n.length ? n.reduce((a,b)=>a+b)/n.length : 0; };
+    const _mid = (g) => { const n = getNums(g).sort((a,b)=>a-b); const l=n.length, m=Math.floor(l/2); return l ? (l%2?n[m]:(n[m-1]+n[m])/2) : 0; };
+    const _mod = (g) => { const n = getNums(g); if(!n.length) return 0; const f = {}; n.forEach(x => f[x] = (f[x]||0)+1); const max = Math.max(...Object.values(f)); const res = Object.keys(f).filter(k => f[k] === max); return res.join('&'); };
+    const _max = (g) => { const n = getNums(g); return n.length ? Math.max(...n) : 0; };
+    const _min = (g) => { const n = getNums(g); return n.length ? Math.min(...n) : 0; };
+
+    function calculate() {
+        if (isBracketOpen) return;
+        try {
+            let originalInput = exprStr;
+            if (originalInput === "0") return;
+            let parts = originalInput.split(/,(?![^\(]*\))/);
+            let results = parts.map(part => {
+                let s = part.trim();
+                s = s.replace(/平均値\((.*?)\)/g, (m, g) => _avg(g)).replace(/中央値\((.*?)\)/g, (m, g) => _mid(g))
+                     .replace(/最頻値\((.*?)\)/g, (m, g) => _mod(g)).replace(/最大値\((.*?)\)/g, (m, g) => _max(g)).replace(/最小値\((.*?)\)/g, (m, g) => _min(g));
+                s = processStr(s);
+                s = s.replace(/π/g,Math.PI).replace(/e/g,Math.E).replace(/⁻/g,'-').replace(/\^/g,'**')
+                     .replace(/√\((.*?)\)/g, 'Math.sqrt($1)').replace(/sin\((.*?)\)/g, 'Math.sin($1*Math.PI/180)')
+                     .replace(/cos\((.*?)\)/g, 'Math.cos($1*Math.PI/180)').replace(/tan\((.*?)\)/g, 'Math.tan($1*Math.PI/180)')
+                     .replace(/log\((.*?)\)/g, 'Math.log10($1)');
+                let res = eval(s);
+                if (typeof res === 'number') {
+                    if (Math.abs(res) >= 1e21 || (Math.abs(res) < 1e-7 && res !== 0)) return res.toExponential().replace(/\+/, '');
+                    return parseFloat(Number(res).toPrecision(15));
+                }
+                return res;
+            });
+            let finalOutput = results.join(', ');
+            const log = document.getElementById('history-list');
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.dataset.expr = originalInput;
+            item.dataset.result = finalOutput;
+            const timeStr = new Date().toLocaleTimeString();
+            const textDiv = document.createElement('div');
+            textDiv.className = 'history-text';
+            textDiv.innerHTML = `<small>${timeStr}</small><br>${originalInput} = <b style="color:#d4af37">${finalOutput}</b>`;
+            textDiv.onclick = function() { restoreExpression(item.dataset.expr); };
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'history-share-btn';
+            shareBtn.textContent = '↗';
+            shareBtn.onclick = function(e) { e.stopPropagation(); shareToMemo(item.dataset.expr, item.dataset.result); };
+            item.appendChild(textDiv);
+            item.appendChild(shareBtn);
+            log.prepend(item);
+            // sessionStorageに保存（タブを閉じるまで保持）
+            const saved = JSON.parse(sessionStorage.getItem('calcHistory') || '[]');
+            saved.unshift({ expr: originalInput, result: finalOutput, time: timeStr });
+            sessionStorage.setItem('calcHistory', JSON.stringify(saved));
+            exprStr = finalOutput;
+            cursorPos = finalOutput.length;
+            isCalculated = true;
+            isBracketOpen = false;
+            applyState();
+        } catch {
+            exprStr = "Error"; cursorPos = 5;
+            isCalculated = true;
+            applyState();
+        }
+    }
+
+    function toggleSummary() { const o = document.getElementById('summary-overlay'); o.style.display = (o.style.display === 'block') ? 'none' : 'block'; }
+    function showPanel(id, btn) { document.querySelectorAll('.keypad, .ext-panel').forEach(p => p.style.display = 'none'); document.getElementById('panel-' + id).style.display = 'grid'; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+    function parsePrefix(val) {
+        if (!val) return 0;
+        let s = String(val).trim();
+        const pKeys = Object.keys(pMap).sort((a,b) => b.length - a.length);
+        for (let p of pKeys) { if (s.endsWith(p)) { let base = s.slice(0, -p.length); return (base === "" ? 1 : parseFloat(base)) * Number(pMap[p]); } }
+        return parseFloat(s);
+    }
+    async function fetchRate() {
+        const resBox = document.getElementById('rate-result'); resBox.innerText = '...';
+        try {
+            const r = await fetch('https://open.er-api.com/v6/latest/USD');
+            const d = await r.json();
+            const amt = parsePrefix(document.getElementById('rate-amount').value);
+            const from = document.getElementById('rate-from').value, to = document.getElementById('rate-to').value;
+            const val = (amt / d.rates[from]) * d.rates[to];
+            resBox.innerHTML = `<span class="res-main">${amt.toLocaleString()}${from} = ${val.toLocaleString()}${to}</span>`;
+        } catch { resBox.innerText = 'Error'; }
+    }
+    function calcTaxAdvanced() {
+        const a = parsePrefix(document.getElementById('tax-amount').value);
+        let tax = 0, type = document.getElementById('tax-type').value;
+        if(type==='income') {
+            if(a <= 1950000) tax = a * 0.05;
+            else if(a <= 3300000) tax = a * 0.1 - 97500;
+            else if(a <= 6950000) tax = a * 0.2 - 427500;
+            else if(a <= 8999000) tax = a * 0.23 - 636000;
+            else if(a <= 17999000) tax = a * 0.33 - 1536000;
+            else if(a <= 39999000) tax = a * 0.4 - 2796000;
+            else tax = a * 0.45 - 4796000;
+        } else if(type==='residence') tax = a * 0.1;
+        else if(type==='consump10') tax = a * 0.1;
+        else if(type==='consump8') tax = a * 0.08;
+        else if(type==='gift') {
+            let base = a - 1100000;
+            if(base <= 0) tax = 0;
+            else if(base <= 2000000) tax = base * 0.1;
+            else if(base <= 3000000) tax = base * 0.15 - 100000;
+            else if(base <= 4000000) tax = base * 0.2 - 250000;
+            else if(base <= 6000000) tax = base * 0.3 - 650000;
+            else if(base <= 10000000) tax = base * 0.4 - 1250000;
+            else if(base <= 15000000) tax = base * 0.45 - 1750000;
+            else tax = base * 0.5 - 2500000;
+        } else if(type==='inheritance') {
+            const p = parseInt(document.getElementById('tax-people-slider').value);
+            const kiso = 30000000 + (6000000 * p);
+            let taxableTotal = a - kiso;
+            if(taxableTotal <= 0) tax = 0;
+            else {
+                let share = taxableTotal / p; let shareTax = 0;
+                if(share <= 10000000) shareTax = share * 0.1;
+                else if(share <= 30000000) shareTax = share * 0.15 - 500000;
+                else if(share <= 50000000) shareTax = share * 0.2 - 2000000;
+                else if(share <= 100000000) shareTax = share * 0.3 - 7000000;
+                else if(share <= 200000000) shareTax = share * 0.4 - 17000000;
+                else if(share <= 300000000) shareTax = share * 0.45 - 27000000;
+                else shareTax = share * 0.5 - 42000000;
+                tax = shareTax * p;
+            }
+        } else if(type==='corp') tax = a * 0.232;
+        document.getElementById('tax-result').innerHTML = `<span class="res-main">¥${Math.max(0, Math.floor(tax)).toLocaleString()}</span>`;
+    }
+    function calcTC() {
+        const type = document.getElementById('tc-type').value;
+        const dv = parsePrefix(document.getElementById('tc-day-val').value) || 0;
+        const resEl = document.getElementById('tc-res-text');
+        if (type === 'sal') {
+            const amt = parsePrefix(document.getElementById('tc-amount').value) || 0;
+            const h = parseInt(document.getElementById('tc-holiday-slider').value), mode = document.getElementById('tc-salary-mode').value, workDays = 365 - h;
+            if (mode === 'rev') resEl.innerHTML = `Day: ¥${Math.floor(amt/workDays).toLocaleString()}<br>Hour: ¥${Math.floor(amt/workDays/8).toLocaleString()}`;
+            else resEl.innerHTML = `Annual: ¥${Math.floor(mode==='day' ? amt*workDays : amt*8*workDays).toLocaleString()}`;
+        } else if (type === 'gas') {
+            const mc = 1500 + ((dv * 30) * 150); resEl.innerHTML = `Month: ¥${Math.floor(mc).toLocaleString()}<br>Year: ¥${Math.floor(mc * 12).toLocaleString()}`;
+        } else if (type === 'water') {
+            const mu = dv * 30; let j = 0;
+            if(mu > 5) { if(mu <= 10) j = (mu - 5) * 22; else if(mu <= 20) j = (5 * 22) + (mu - 10) * 128; else if(mu <= 30) j = (5 * 22) + (10 * 128) + (mu - 20) * 163; else j = (5 * 22) + (10 * 128) + (10 * 163) + (mu - 30) * 213; }
+            const mc = (1000 + j) * 1.1; resEl.innerHTML = `Month: ¥${Math.floor(mc).toLocaleString()}<br>Year: ¥${Math.floor(mc * 12).toLocaleString()}`;
+        } else if (type === 'elec') {
+            const mc = (dv * 31) * 30; resEl.innerHTML = `Month: ¥${Math.floor(mc).toLocaleString()}<br>Year: ¥${Math.floor(mc * 12).toLocaleString()}`;
+        } else { resEl.innerHTML = `Month: ¥${(dv*30).toLocaleString()}<br>Year: ¥${(dv*365).toLocaleString()}`; }
+    }
+    const langData = {
+        ja: {title:"PREMIUM CALCULATOR", m1:"基本", m2:"接頭語", m3:"値数", m4:"科学", m5:"レート", m6:"税金", m7:"試算", m8:"資料", hol:"年間休日: ", s1:"平均", s2:"中央", s3:"最頻", s4:"乗数", s5:"最大", s6:"最小", tax_opt:["所得税","住民税","消費税10%","消費税8%","法人税","贈与税","相続税"], sal_opt:["日当→年収","時給→年収","年収→日当/時給"], tc_opt:["給料","食費","水道","ガス","電気"]},
+        en: {title:"PRM CALCULATOR", m1:"Basic", m2:"Prefix", m3:"Stats", m4:"Sci", m5:"Rate", m6:"Tax", m7:"Sim", m8:"Docs", hol:"Holidays: ", s1:"Avg", s2:"Mid", s3:"Mode", s4:"Mul", s5:"Max", s6:"Min", tax_opt:["Income","Residence","VAT10","VAT8","Corp","Gift","Inherit"], sal_opt:["Daily to Annual","Hourly to Annual","Annual to Day/Hour"], tc_opt:["Salary","Food","Water","Gas","Elec"]},
+        zh: {title:"高级计算器", m1:"基础", m2:"词綴", m3:"统计", m4:"科学", m5:"汇率", m6:"税务", m7:"模拟", m8:"资料", hol:"年假: ", s1:"平均", s2:"中位", s3:"众数", s4:"乘数", s5:"最大值", s6:"最小值", tax_opt:["所得税","居住税","增值税10%","增值税8%","企业税","赠与税","遗产税"], sal_opt:["日薪→年薪","时薪→年薪","年薪→日/时"], tc_opt:["工资","伙食","水费","燃气","电费"]},
+        es: {title:"CALCULADORA PRM", m1:"Básico", m2:"Prefijo", m3:"Estad.", m4:"Cien.", m5:"Tasa", m6:"Impues.", m7:"Sim.", m8:"Docs", hol:"Vacaciones: ", s1:"Prom.", s2:"Med.", s3:"Moda", s4:"Mult.", s5:"Máx.", s6:"Mín.", tax_opt:["Renta","Residencia","IVA10","IVA8","Corp.","Donación","Sucesión"], sal_opt:["Diario→Anual","Hora→Anual","Anual→Día/Hour"], tc_opt:["Salario","Comida","Agua","Gas","Elect."]}
+    };
+    function changeLang(l) {
+        currentLang = l; const d = langData[l] || langData.en;
+        document.getElementById('main-title').innerText = d.title;
+        ['m-basic','m-unit','m-stats','m-sci','m-rate','m-tax','m-tc','m-docs'].forEach((id,i)=>document.getElementById(id).innerText=d['m'+(i+1)]);
+        ['s-avg','s-mid','s-mod','s-mul','s-max','s-min'].forEach((id,i)=> { if(document.getElementById(id)) document.getElementById(id).innerText=d['s'+(i+1)]; });
+        updateSelect('tax-type', d.tax_opt, ['income','residence','consump10','consump8','corp','gift','inheritance']);
+        updateSelect('tc-salary-mode', d.sal_opt, ['day','hour','rev']);
+        updateSelect('tc-type', d.tc_opt, ['sal', 'food', 'water', 'gas', 'elec']);
+        toggleTCUI();
+    }
+    function updateSelect(id, texts, vals) { const s = document.getElementById(id); s.innerHTML = ""; texts.forEach((t, i) => s.add(new Option(t, vals[i]))); }
+    function updateTaxPeople(v) { document.getElementById('l-tax-people').innerText = `法定相続人数: ${v}人`; }
+    function updateHolidayLabel(v) { document.getElementById('holiday-label').innerText = (langData[currentLang]?.hol || "Holidays: ") + v; }
+    function toggleTaxUI() { document.getElementById('tax-people-box').className = (document.getElementById('tax-type').value === 'inheritance') ? '' : 'hidden'; }
+    function toggleTCUI() {
+        const type = document.getElementById('tc-type').value; const isSal = type === 'sal';
+        const labelAmt = document.getElementById('l-tc-amt'); const inputAmt = document.getElementById('tc-amount'); const unitSuffix = document.getElementById('unit-suffix');
+        document.getElementById('tc-day-box').className = isSal ? 'hidden' : ''; document.getElementById('tc-salary-options').className = isSal ? '' : 'hidden';
+        if (type === 'water' || type === 'gas') unitSuffix.innerText = 'm3'; else if (type === 'elec') unitSuffix.innerText = 'kWh'; else unitSuffix.innerText = '';
+        if (type === 'gas') { labelAmt.innerText = "..."; inputAmt.value = "1500 + 150/m3"; inputAmt.readOnly = true; }
+        else if (type === 'water') { labelAmt.innerText = "..."; inputAmt.value = "TOKYO"; inputAmt.readOnly = true; }
+        else if (type === 'elec') { labelAmt.innerText = "..."; inputAmt.value = "1kWh=31"; inputAmt.readOnly = true; }
+        else if (type === 'food') { labelAmt.innerText = "..."; inputAmt.value = "Daily Target"; inputAmt.readOnly = true; }
+        else if (isSal) { labelAmt.innerText = "Amount"; inputAmt.value = "1k"; inputAmt.readOnly = false; }
+        else { labelAmt.innerText = "Amount"; inputAmt.value = "0"; inputAmt.readOnly = false; }
+    }
+
+    window.onload = () => {
+        const cur = ["JPY","USD","EUR","GBP","CNY","KRW"]; const f = document.getElementById('rate-from'), t = document.getElementById('rate-to');
+        cur.forEach(c => { f.add(new Option(c, c)); t.add(new Option(c, c)); }); f.value = "USD"; t.value = "JPY"; changeLang('ja');
+        // スマホ高速入力対応：touchstartで即反応（onclickの300ms遅延を排除）
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                this.click();
+            }, { passive: false });
+        });
+        disp.addEventListener('keydown', (e) => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault(); });
+        disp.addEventListener('focus', () => { if(exprStr === "0") requestAnimationFrame(() => setCursor(1)); });
+        // カーソル移動時にcursorPosをDOMから同期
+        disp.addEventListener('keyup', () => { cursorPos = getSafePos(); });
+        disp.addEventListener('mouseup', () => { cursorPos = getSafePos(); });
+        disp.addEventListener('touchend', () => { setTimeout(() => { cursorPos = getSafePos(); }, 50); });
+        // 数値入力欄のカナ・日本語入力を禁止（英数記号は通す）
+        const numInputIds = ['rate-amount','tax-amount','tc-amount','tc-day-val'];
+        numInputIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            let savedValue = '';
+            let savedCursor = 0;
+            // IME起動前の値とカーソル位置を保存
+            el.addEventListener('compositionstart', function() {
+                savedValue = this.value;
+                savedCursor = this.selectionStart;
+            });
+            // IME確定時：日本語・カナが含まれていたら確定前の値に完全に戻す
+            el.addEventListener('compositionend', function() {
+                const hasJP = /[぀-ゟ゠-ヿ一-龯　-〿！-｠]/.test(this.value);
+                if (hasJP) {
+                    this.value = savedValue;
+                    this.setSelectionRange(savedCursor, savedCursor);
+                }
+            });
+            // 通常入力（IME未使用時）でもカナが入った場合は除去
+            el.addEventListener('input', function(e) {
+                if (e.isComposing) return;
+                const pos = this.selectionStart;
+                const cleaned = this.value.replace(/[぀-ゟ゠-ヿ一-龯　-〿！-｠]/g, '');
+                if (cleaned !== this.value) {
+                    const diff = this.value.length - cleaned.length;
+                    this.value = cleaned;
+                    this.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+                }
+            });
+        });
+        // sessionStorageから履歴を復元（リロードしても消えない、タブを閉じると消える）
+        const saved = JSON.parse(sessionStorage.getItem('calcHistory') || '[]');
+        const log = document.getElementById('history-list');
+        saved.forEach(h => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.dataset.expr = h.expr;
+            item.dataset.result = h.result;
+            const textDiv2 = document.createElement('div');
+            textDiv2.className = 'history-text';
+            textDiv2.innerHTML = `<small>${h.time}</small><br>${h.expr} = <b style="color:#d4af37">${h.result}</b>`;
+            textDiv2.onclick = function() { restoreExpression(item.dataset.expr); };
+            const shareBtn2 = document.createElement('button');
+            shareBtn2.className = 'history-share-btn';
+            shareBtn2.textContent = '↗';
+            shareBtn2.onclick = function(e) { e.stopPropagation(); shareToMemo(item.dataset.expr, item.dataset.result); };
+            item.appendChild(textDiv2);
+            item.appendChild(shareBtn2);
+            log.appendChild(item);
+        });
+    };
+
+    // ピンチズーム無効化
+    document.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+
+    // ダブルタップズーム無効化
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(e) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) e.preventDefault();
+        lastTouchEnd = now;
+    }, { passive: false });
+
+    // Safariジェスチャーズーム無効化
+    document.addEventListener('gesturestart', function(e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gesturechange', function(e) { e.preventDefault(); }, { passive: false });
+    document.addEventListener('gestureend', function(e) { e.preventDefault(); }, { passive: false });
+
+</script>
+</body>
+</html>
