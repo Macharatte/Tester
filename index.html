@@ -676,13 +676,14 @@
     window.onload = () => {
         const cur = ["JPY","USD","EUR","GBP","CNY","KRW"]; const f = document.getElementById('rate-from'), t = document.getElementById('rate-to');
         cur.forEach(c => { f.add(new Option(c, c)); t.add(new Option(c, c)); }); f.value = "USD"; t.value = "JPY"; changeLang('ja');
-        // スマホ高速入力対応：touchstartで即反応（onclickの300ms遅延を排除）
-        document.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('touchstart', function(e) {
-                e.preventDefault();
-                this.click();
-            }, { passive: false });
-        });
+        // スマホ・タブレット高速入力対応：touchstartで即反応（onclickの300ms遅延を排除）
+        // documentレベルで委譲することで動的生成ボタンも含めて全対応
+        document.addEventListener('touchstart', function(e) {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            e.preventDefault();
+            btn.click();
+        }, { passive: false });
         disp.addEventListener('keydown', (e) => { if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault(); });
         disp.addEventListener('focus', () => { if(exprStr === "0") requestAnimationFrame(() => setCursor(1)); });
         // カーソル移動時にcursorPosをDOMから同期
